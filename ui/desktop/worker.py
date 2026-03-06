@@ -8,16 +8,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.main import search
+from src.main import search_with_progress
 
 
 class WorkerSignals(QObject):
+    progress = pyqtSignal(int, str)  # percent, label
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
 
 class SearchWorker(QRunnable):
-    """Runs the full search pipeline in a thread pool."""
+    """Runs the full search pipeline in a thread pool, emitting progress."""
 
     def __init__(self, query: str):
         super().__init__()
@@ -27,7 +28,11 @@ class SearchWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
-            result = search(self.query)
-            self.signals.finished.emit(result)
+            for step_name, label, percent, state in search_with_progress(self.query):
+                if state is None:
+                    self.signals.progress.emit(percent, label)
+                else:
+                    self.signals.progress.emit(100, "Done")
+                    self.signals.finished.emit(state)
         except Exception as e:
             self.signals.error.emit(str(e))

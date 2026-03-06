@@ -43,9 +43,16 @@ def build_graph() -> StateGraph:
 app = build_graph().compile()
 
 
-def search(user_query: str) -> SearchState:
-    """Run the full search pipeline for a user query."""
-    initial_state: SearchState = {
+STEPS = [
+    ("query_architect", "Building search query...", 25),
+    ("search_agent", "Fetching papers from arXiv...", 50),
+    ("quality_agent", "Ranking and filtering results...", 75),
+    ("synthesis_agent", "Generating summary...", 95),
+]
+
+
+def _initial_state(user_query: str) -> SearchState:
+    return {
         "user_query": user_query,
         "arxiv_query": "",
         "broaden": False,
@@ -56,4 +63,38 @@ def search(user_query: str) -> SearchState:
         "summary": "",
         "error": None,
     }
-    return app.invoke(initial_state)
+
+
+def search(user_query: str) -> SearchState:
+    """Run the full search pipeline for a user query."""
+    return app.invoke(_initial_state(user_query))
+
+
+def search_with_progress(user_query: str):
+    """Run the pipeline step-by-step, yielding (step_name, label, percent, state) after each.
+
+    The final yield has percent=100 and the complete state.
+    """
+    agents = {
+        "query_architect": query_architect,
+        "search_agent": search_agent,
+        "quality_agent": quality_agent,
+        "synthesis_agent": synthesis_agent,
+    }
+
+    state = _initial_state(user_query)
+
+    for step_name, label, percent in STEPS:
+        yield step_name, label, percent, None
+        state = {**state, **agents[step_name](state)}
+
+        # Handle broadening loop
+        if step_name == "quality_agent" and state.get("broaden", False):
+            yield "query_architect", "Broadening query...", 30, None
+            state = {**state, **query_architect(state)}
+            yield "search_agent", "Re-fetching papers...", 50, None
+            state = {**state, **search_agent(state)}
+            yield "quality_agent", "Re-ranking results...", 75, None
+            state = {**state, **quality_agent(state)}
+
+    yield "done", "Done", 100, state

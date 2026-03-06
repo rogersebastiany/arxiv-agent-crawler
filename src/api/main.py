@@ -4,14 +4,33 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
+
+import numpy as np
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
 
-from src.main import search
+from src.main import search, search_with_progress
 from src.storage import is_saved, load_saved, remove_article, save_article
 
 app = FastAPI(title="arXiv Agent Crawler", version="0.1.0")
+
+
+def _sanitize(obj):
+    """Recursively convert numpy types to native Python types."""
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    return obj
 
 
 # --- Search ---
@@ -37,11 +56,36 @@ def run_search(request: SearchRequest):
     return SearchResponse(
         query=result["user_query"],
         arxiv_query=result.get("arxiv_query", ""),
-        quality_score=result.get("quality_score", 0.0),
+        quality_score=float(result.get("quality_score", 0.0)),
         summary=result.get("summary", ""),
-        top_results=result.get("ranked_results", [])[:20],
+        top_results=_sanitize(result.get("ranked_results", [])[:20]),
         retry_count=result.get("retry_count", 0),
     )
+
+
+@app.post("/api/search/stream")
+def run_search_stream(request: SearchRequest):
+    """SSE endpoint that streams progress updates during search."""
+
+    def event_stream():
+        for step_name, label, percent, state in search_with_progress(request.query):
+            if state is None:
+                payload = json.dumps({"step": step_name, "label": label, "percent": percent})
+                yield f"event: progress\ndata: {payload}\n\n"
+            else:
+                result = _sanitize(
+                    {
+                        "query": state["user_query"],
+                        "arxiv_query": state.get("arxiv_query", ""),
+                        "quality_score": float(state.get("quality_score", 0.0)),
+                        "summary": state.get("summary", ""),
+                        "top_results": state.get("ranked_results", [])[:20],
+                        "retry_count": state.get("retry_count", 0),
+                    }
+                )
+                yield f"event: result\ndata: {json.dumps(result)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 # --- Saved articles ---

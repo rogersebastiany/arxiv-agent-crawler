@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QStackedWidget,
     QTabWidget,
@@ -135,6 +136,28 @@ class SearchTab(QWidget):
 
         layout.addLayout(search_row)
 
+        # Progress
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFixedHeight(6)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet(
+            f"""
+            QProgressBar {{
+                background-color: {COLORS["border"]};
+                border: none;
+                border-radius: 3px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {COLORS["accent"]};
+                border-radius: 3px;
+            }}
+            """
+        )
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
+
         # Status
         self.status_label = QLabel("")
         self.status_label.setStyleSheet(f"font-size: 13px; color: {COLORS['text_muted']};")
@@ -153,18 +176,26 @@ class SearchTab(QWidget):
             return
         self.search_btn.setEnabled(False)
         self.search_input.setEnabled(False)
-        self.status_label.setText("Searching... this may take a moment")
+        self.progress_bar.setValue(0)
+        self.progress_bar.show()
+        self.status_label.setText("")
         self.results_list.clear()
         self.papers.clear()
 
         worker = SearchWorker(query)
+        worker.signals.progress.connect(self._on_progress)
         worker.signals.finished.connect(self._on_results)
         worker.signals.error.connect(self._on_error)
         self.thread_pool.start(worker)
 
+    def _on_progress(self, percent: int, label: str):
+        self.progress_bar.setValue(percent)
+        self.status_label.setText(label)
+
     def _on_results(self, result: dict):
         self.search_btn.setEnabled(True)
         self.search_input.setEnabled(True)
+        self.progress_bar.hide()
         ranked = result.get("ranked_results", [])
         quality = result.get("quality_score", 0)
         self.status_label.setText(f"{len(ranked)} results  |  Top relevance: {quality:.4f}")
@@ -183,6 +214,7 @@ class SearchTab(QWidget):
     def _on_error(self, error: str):
         self.search_btn.setEnabled(True)
         self.search_input.setEnabled(True)
+        self.progress_bar.hide()
         self.status_label.setText("")
         QMessageBox.warning(self, "Search Error", error)
 

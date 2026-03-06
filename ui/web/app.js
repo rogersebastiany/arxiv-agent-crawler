@@ -13,6 +13,9 @@ const detailsPanel = $("#details-panel");
 const savedBody = $("#saved-body");
 const savedTable = $("#saved-table");
 const savedEmpty = $("#saved-empty");
+const progressContainer = $("#progress");
+const progressFill = $("#progress-fill");
+const progressLabel = $("#progress-label");
 
 // --- Tabs ---
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -26,6 +29,18 @@ document.querySelectorAll(".tab").forEach((tab) => {
 });
 
 // --- Search ---
+function setProgress(percent, label) {
+  progressContainer.hidden = false;
+  progressFill.style.width = `${percent}%`;
+  progressLabel.textContent = label;
+}
+
+function hideProgress() {
+  progressContainer.hidden = true;
+  progressFill.style.width = "0%";
+  progressLabel.textContent = "";
+}
+
 searchForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const query = searchInput.value.trim();
@@ -33,26 +48,55 @@ searchForm.addEventListener("submit", async (e) => {
 
   searchBtn.disabled = true;
   searchInput.disabled = true;
-  status.innerHTML = '<span class="spinner"></span>Searching... this may take a moment';
+  status.textContent = "";
   resultsDiv.innerHTML = "";
+  setProgress(5, "Starting search...");
 
   try {
-    const res = await fetch("/api/search", {
+    const res = await fetch("/api/search/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     });
     if (!res.ok) throw new Error(`Search failed: ${res.status}`);
-    const data = await res.json();
-    searchResults = data.top_results || [];
-    status.textContent = `${searchResults.length} results  |  Top relevance: ${data.quality_score.toFixed(4)}`;
-    renderResults();
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      let eventType = null;
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ") && eventType) {
+          const data = JSON.parse(line.slice(6));
+          if (eventType === "progress") {
+            setProgress(data.percent, data.label);
+          } else if (eventType === "result") {
+            setProgress(100, "Done");
+            searchResults = data.top_results || [];
+            status.textContent = `${searchResults.length} results  |  Top relevance: ${data.quality_score.toFixed(4)}`;
+            renderResults();
+          }
+          eventType = null;
+        }
+      }
+    }
   } catch (err) {
     status.textContent = "";
     alert(err.message);
   } finally {
     searchBtn.disabled = false;
     searchInput.disabled = false;
+    setTimeout(hideProgress, 1000);
   }
 });
 
