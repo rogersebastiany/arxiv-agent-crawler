@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>arXiv Agent Search</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <h1>arXiv Agent Search</h1>
+      <p class="subtitle">AI-powered academic paper discovery</p>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="search">Search</button>
+      <button class="tab" data-tab="saved">Saved Articles</button>
+    </nav>
+
+    <!-- Search Tab -->
+    <div id="tab-search" class="tab-content active">
+      <form id="search-form" class="search-bar">
+        <input type="text" id="search-input" placeholder="Describe what you're researching..." autocomplete="off">
+        <button type="submit" id="search-btn">Search</button>
+      </form>
+      <p id="status" class="status"></p>
+      <div id="results" class="results"></div>
+    </div>
+
+    <!-- Saved Tab -->
+    <div id="tab-saved" class="tab-content">
+      <div id="saved-empty" class="empty-state">
+        No saved articles yet.<br>Search and save papers to build your reading list.
+      </div>
+      <table id="saved-table" class="saved-table" hidden>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>arXiv ID</th>
+            <th>Score</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="saved-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Details Panel (overlay) -->
+    <div id="details-panel" class="details-panel" hidden>
+      <div class="details-content">
+        <div class="details-top">
+          <button id="details-back" class="btn-ghost">&larr; Back</button>
+          <button id="details-save" class="btn-primary">Save Article</button>
+        </div>
+        <h2 id="details-title"></h2>
+        <p id="details-meta" class="meta"></p>
+        <hr>
+        <h3 class="section-label">Abstract</h3>
+        <p id="details-abstract"></p>
+        <div class="details-bottom">
+          <a id="details-pdf" class="btn-primary" target="_blank" rel="noopener">Download PDF</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
