@@ -4,6 +4,45 @@ AI-powered hybrid search engine for arXiv papers. Translates natural language re
 
 **Pipeline:** User query → LLM query builder → arXiv API (100 candidates) → FAISS + BM25 → RRF fusion → FlashRank reranking → LLM synthesis
 
+## How It Works
+
+```mermaid
+graph TD
+    U([User Query]) --> QA[Query Architect<br/><i>LLM via LiteLLM</i>]
+    QA -->|arXiv query string| SA[Search Agent<br/><i>arXiv API + cache</i>]
+    SA -->|~100 candidates| QAG[Quality Agent]
+
+    subgraph QAG[Quality Agent]
+        direction TB
+        FAISS[FAISS Vector Search<br/><i>BGE-small embeddings</i>]
+        BM25[BM25 Lexical Search]
+        RRF[RRF Fusion]
+        FR[FlashRank Reranking<br/><i>Cross-encoder</i>]
+        FAISS --> RRF
+        BM25 --> RRF
+        RRF -->|top 20| FR
+    end
+
+    FR -->|score < 0.3| QA
+    FR -->|score >= 0.3| SY[Synthesis Agent<br/><i>LLM summary</i>]
+    SY --> R([Ranked Results +<br/>Executive Summary])
+
+    style U fill:#5865f2,color:#fff,stroke:none
+    style R fill:#57f287,color:#1a1b26,stroke:none
+    style QA fill:#313338,color:#f2f3f5,stroke:#5865f2
+    style SA fill:#313338,color:#f2f3f5,stroke:#5865f2
+    style SY fill:#313338,color:#f2f3f5,stroke:#5865f2
+    style FAISS fill:#383a40,color:#b5bac1,stroke:#3f4147
+    style BM25 fill:#383a40,color:#b5bac1,stroke:#3f4147
+    style RRF fill:#383a40,color:#b5bac1,stroke:#3f4147
+    style FR fill:#383a40,color:#b5bac1,stroke:#3f4147
+```
+
+1. **Query Architect** — LLM translates your question into arXiv search syntax with field prefixes, boolean operators, and category filters
+2. **Search Agent** — Fetches up to 100 candidate papers from arXiv API (with caching and retry)
+3. **Quality Agent** — Runs hybrid search (FAISS semantic + BM25 lexical → RRF fusion), then FlashRank cross-encoder reranking. If the top score is below 0.3, it triggers a broadening loop back to the Query Architect (max 3 retries)
+4. **Synthesis Agent** — LLM generates an executive summary of the top 5 papers
+
 ## Quick Start
 
 ### Prerequisites
@@ -107,45 +146,6 @@ All config is via `.env` (see `.env.example`):
 | `LANGFUSE_PUBLIC_KEY` | LangFuse public key (optional) | — |
 | `LANGFUSE_SECRET_KEY` | LangFuse secret key (optional) | — |
 | `LANGFUSE_HOST` | LangFuse server URL | `http://localhost:3000` |
-
-## How It Works
-
-```mermaid
-graph TD
-    U([User Query]) --> QA[Query Architect<br/><i>LLM via LiteLLM</i>]
-    QA -->|arXiv query string| SA[Search Agent<br/><i>arXiv API + cache</i>]
-    SA -->|~100 candidates| QAG[Quality Agent]
-
-    subgraph QAG[Quality Agent]
-        direction TB
-        FAISS[FAISS Vector Search<br/><i>BGE-small embeddings</i>]
-        BM25[BM25 Lexical Search]
-        RRF[RRF Fusion]
-        FR[FlashRank Reranking<br/><i>Cross-encoder</i>]
-        FAISS --> RRF
-        BM25 --> RRF
-        RRF -->|top 20| FR
-    end
-
-    FR -->|score < 0.3| QA
-    FR -->|score >= 0.3| SY[Synthesis Agent<br/><i>LLM summary</i>]
-    SY --> R([Ranked Results +<br/>Executive Summary])
-
-    style U fill:#5865f2,color:#fff,stroke:none
-    style R fill:#57f287,color:#1a1b26,stroke:none
-    style QA fill:#313338,color:#f2f3f5,stroke:#5865f2
-    style SA fill:#313338,color:#f2f3f5,stroke:#5865f2
-    style SY fill:#313338,color:#f2f3f5,stroke:#5865f2
-    style FAISS fill:#383a40,color:#b5bac1,stroke:#3f4147
-    style BM25 fill:#383a40,color:#b5bac1,stroke:#3f4147
-    style RRF fill:#383a40,color:#b5bac1,stroke:#3f4147
-    style FR fill:#383a40,color:#b5bac1,stroke:#3f4147
-```
-
-1. **Query Architect** — LLM translates your question into arXiv search syntax with field prefixes, boolean operators, and category filters
-2. **Search Agent** — Fetches up to 100 candidate papers from arXiv API (with caching and retry)
-3. **Quality Agent** — Runs hybrid search (FAISS semantic + BM25 lexical → RRF fusion), then FlashRank cross-encoder reranking. If the top score is below 0.3, it triggers a broadening loop back to the Query Architect (max 3 retries)
-4. **Synthesis Agent** — LLM generates an executive summary of the top 5 papers
 
 ## Observability
 
