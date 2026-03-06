@@ -35,3 +35,5 @@ Thumbs.db
 # Models cache (large downloaded models)
 .cache/
 .claude/
+CLAUDE.md
+PROMPT.md
