@@ -1,0 +1,62 @@
+[
+  {
+    "id": "edge_vague_01",
+    "query": "what's new in AI",
+    "description": "Intentionally vague query — should still return relevant results",
+    "min_relevance": 0.5
+  },
+  {
+    "id": "edge_technical_01",
+    "query": "How are autonomous agents being used to automate testing in CI/CD pipelines?",
+    "description": "Specific technical domain — should surface agent + CI/CD papers",
+    "min_relevance": 0.8
+  },
+  {
+    "id": "edge_technical_02",
+    "query": "retrieval augmented generation with sparse and dense retrieval fusion",
+    "description": "Established research area — should surface RAG papers",
+    "min_relevance": 0.8
+  },
+  {
+    "id": "edge_multi_topic_01",
+    "query": "reinforcement learning for neural architecture search applied to medical imaging",
+    "description": "Multi-topic intersection — tests ability to handle compound queries",
+    "min_relevance": 0.6
+  },
+  {
+    "id": "edge_niche_01",
+    "query": "formal verification of smart contracts using theorem provers",
+    "description": "Niche topic — tests broadening loop if initial results are sparse",
+    "min_relevance": 0.6
+  },
+  {
+    "id": "edge_ambiguous_01",
+    "query": "transformers",
+    "description": "Ambiguous single-word query — should default to ML transformers",
+    "min_relevance": 0.5
+  },
+  {
+    "id": "edge_recent_01",
+    "query": "latest advances in multimodal large language models",
+    "description": "Recency-sensitive query",
+    "min_relevance": 0.7
+  },
+  {
+    "id": "edge_negative_01",
+    "query": "machine learning approaches that do not use neural networks",
+    "description": "Negation query — tests query architect's handling of exclusions",
+    "min_relevance": 0.6
+  },
+  {
+    "id": "edge_cross_domain_01",
+    "query": "applying NLP techniques to analyze legal documents and court decisions",
+    "description": "Cross-domain application",
+    "min_relevance": 0.7
+  },
+  {
+    "id": "edge_methodology_01",
+    "query": "comparison of fine-tuning vs in-context learning for few-shot classification",
+    "description": "Methodology comparison query",
+    "min_relevance": 0.7
+  }
+]
